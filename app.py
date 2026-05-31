@@ -1,54 +1,36 @@
-﻿import sqlite3
-import hashlib
+﻿import hashlib
 from datetime import datetime, timedelta
-from flask import Flask, render_template, request, redirect, url_for, session, flash, g
+from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask_sqlalchemy import SQLAlchemy
 from functools import wraps
 
 app = Flask(__name__)
 app.secret_key = 'metering-system-secret-2024'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///metering.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
 
-DATABASE = 'metering.db'
+# Models
+class User(db.Model):
+    __tablename__ = 'users'
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    password_hash = db.Column(db.String(120), nullable=False)
+    role = db.Column(db.String(20), default='admin')
 
-def get_db():
-    if 'db' not in g:
-        g.db = sqlite3.connect(DATABASE)
-        g.db.row_factory = sqlite3.Row
-    return g.db
-
-@app.teardown_appcontext
-def close_db(error):
-    db = g.pop('db', None)
-    if db:
-        db.close()
-
-def init_db():
-    db = sqlite3.connect(DATABASE)
-    c = db.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE NOT NULL,
-        password_hash TEXT NOT NULL,
-        role TEXT DEFAULT ''admin'')''')
-    c.execute('''CREATE TABLE IF NOT EXISTS devices (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        model TEXT DEFAULT '''',
-        manufacturer TEXT DEFAULT '''',
-        purchase_date TEXT DEFAULT '''',
-        keeper TEXT DEFAULT '''',
-        calibration_cycle INTEGER DEFAULT 365,
-        last_calibration_date TEXT DEFAULT '''',
-        next_calibration_date TEXT DEFAULT '''',
-        status TEXT DEFAULT ''在用'',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
-    pw = hashlib.sha256('123456'.encode()).hexdigest()
-    try:
-        c.execute('INSERT INTO users (username, password_hash, role) VALUES (?,?,?)',
-                  ('admin', pw, 'admin'))
-    except sqlite3.IntegrityError:
-        pass
-    db.commit()
-    db.close()
+class Device(db.Model):
+    __tablename__ = 'devices'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False)
+    model = db.Column(db.String(100), default='')
+    manufacturer = db.Column(db.String(200), default='')
+    purchase_date = db.Column(db.String(20), default='')
+    keeper = db.Column(db.String(100), default='')
+    calibration_cycle = db.Column(db.Integer, default=365)
+    last_calibration_date = db.Column(db.String(20), default='')
+    next_calibration_date = db.Column(db.String(20), default='')
+    status = db.Column(db.String(20), default='在用')
+    created_at = db.Column(db.DateTime, default=datetime.now)
 
 def login_required(f):
     @wraps(f)
@@ -63,36 +45,43 @@ def next_cal(last_date, cycle):
         try:
             d = datetime.strptime(last_date, '%Y-%m-%d') + timedelta(days=cycle)
             return d.strftime('%Y-%m-%d')
-        except: pass
+        except:
+            pass
     return ''
 
 @app.route('/')
 @login_required
 def index():
-    db = get_db()
-    devices = db.execute('SELECT * FROM devices ORDER BY created_at DESC').fetchall()
+    devices = Device.query.order_by(Device.created_at.desc()).all()
     today = datetime.now().date()
     alerts = []
     for d in devices:
-        if d['next_calibration_date']:
+        if d.next_calibration_date:
             try:
-                nd = datetime.strptime(d['next_calibration_date'], '%Y-%m-%d').date()
+                nd = datetime.strptime(d.next_calibration_date, '%Y-%m-%d').date()
                 dl = (nd - today).days
                 if 0 <= dl <= 30:
-                    alerts.append({**dict(d), 'days_left': dl})
-            except: pass
-    return render_template('dashboard.html', devices=[dict(r) for r in devices], alerts=alerts)
+                    alerts.append({
+                        'name': d.name, 'days_left': dl,
+                        'id': d.id, 'status': d.status,
+                        'model': d.model, 'keeper': d.keeper,
+                        'calibration_cycle': d.calibration_cycle,
+                        'last_calibration_date': d.last_calibration_date,
+                        'next_calibration_date': d.next_calibration_date
+                    })
+            except:
+                pass
+    return render_template('dashboard.html', devices=devices, alerts=alerts)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         u = request.form['username']
         p = request.form['password']
-        db = get_db()
-        user = db.execute('SELECT * FROM users WHERE username=?', (u,)).fetchone()
-        if user and user['password_hash'] == hashlib.sha256(p.encode()).hexdigest():
-            session['user_id'] = user['id']
-            session['username'] = user['username']
+        user = User.query.filter_by(username=u).first()
+        if user and user.password_hash == hashlib.sha256(p.encode()).hexdigest():
+            session['user_id'] = user.id
+            session['username'] = user.username
             return redirect(url_for('index'))
         flash('用户名或密码错误')
     return render_template('login.html')
@@ -109,14 +98,19 @@ def device_add():
         lc = request.form.get('last_calibration_date', '')
         cy = int(request.form.get('calibration_cycle', 365) or 365)
         nc = next_cal(lc, cy)
-        db = get_db()
-        db.execute('''INSERT INTO devices (name, model, manufacturer, purchase_date, keeper,
-            calibration_cycle, last_calibration_date, next_calibration_date, status)
-            VALUES (?,?,?,?,?,?,?,?,?)''',
-            (request.form['name'], request.form.get('model',''), request.form.get('manufacturer',''),
-             request.form.get('purchase_date',''), request.form.get('keeper',''),
-             cy, lc, nc, request.form.get('status','在用')))
-        db.commit()
+        device = Device(
+            name=request.form['name'],
+            model=request.form.get('model', ''),
+            manufacturer=request.form.get('manufacturer', ''),
+            purchase_date=request.form.get('purchase_date', ''),
+            keeper=request.form.get('keeper', ''),
+            calibration_cycle=cy,
+            last_calibration_date=lc,
+            next_calibration_date=nc,
+            status=request.form.get('status', '在用')
+        )
+        db.session.add(device)
+        db.session.commit()
         flash('器具添加成功')
         return redirect(url_for('index'))
     return render_template('form.html', device=None, action='添加')
@@ -124,43 +118,45 @@ def device_add():
 @app.route('/device/<int:device_id>')
 @login_required
 def device_detail(device_id):
-    db = get_db()
-    d = db.execute('SELECT * FROM devices WHERE id=?', (device_id,)).fetchone()
-    if not d:
-        flash('器具不存在'); return redirect(url_for('index'))
-    return render_template('detail.html', device=dict(d))
+    d = Device.query.get_or_404(device_id)
+    return render_template('detail.html', device=d)
 
 @app.route('/device/<int:device_id>/edit', methods=['GET', 'POST'])
 @login_required
 def device_edit(device_id):
-    db = get_db()
-    d = db.execute('SELECT * FROM devices WHERE id=?', (device_id,)).fetchone()
-    if not d:
-        flash('器具不存在'); return redirect(url_for('index'))
+    d = Device.query.get_or_404(device_id)
     if request.method == 'POST':
-        lc = request.form.get('last_calibration_date', '')
-        cy = int(request.form.get('calibration_cycle', 365) or 365)
-        nc = next_cal(lc, cy)
-        db.execute('''UPDATE devices SET name=?, model=?, manufacturer=?, purchase_date=?,
-            keeper=?, calibration_cycle=?, last_calibration_date=?, next_calibration_date=?, status=?
-            WHERE id=?''',
-            (request.form['name'], request.form.get('model',''), request.form.get('manufacturer',''),
-             request.form.get('purchase_date',''), request.form.get('keeper',''),
-             cy, lc, nc, request.form.get('status','在用'), device_id))
-        db.commit()
+        d.name = request.form['name']
+        d.model = request.form.get('model', '')
+        d.manufacturer = request.form.get('manufacturer', '')
+        d.purchase_date = request.form.get('purchase_date', '')
+        d.keeper = request.form.get('keeper', '')
+        d.calibration_cycle = int(request.form.get('calibration_cycle', 365) or 365)
+        d.last_calibration_date = request.form.get('last_calibration_date', '')
+        d.next_calibration_date = next_cal(d.last_calibration_date, d.calibration_cycle)
+        d.status = request.form.get('status', '在用')
+        db.session.commit()
         flash('更新成功')
         return redirect(url_for('device_detail', device_id=device_id))
-    return render_template('form.html', device=dict(d), action='编辑')
+    return render_template('form.html', device=d, action='编辑')
 
 @app.route('/device/<int:device_id>/delete', methods=['POST'])
 @login_required
 def device_delete(device_id):
-    db = get_db()
-    db.execute('DELETE FROM devices WHERE id=?', (device_id,))
-    db.commit()
+    d = Device.query.get_or_404(device_id)
+    db.session.delete(d)
+    db.session.commit()
     flash('已删除')
     return redirect(url_for('index'))
 
+def init_db():
+    db.create_all()
+    if not User.query.filter_by(username='admin').first():
+        pw = hashlib.sha256('123456'.encode()).hexdigest()
+        db.session.add(User(username='admin', password_hash=pw, role='admin'))
+        db.session.commit()
+
 if __name__ == '__main__':
-    init_db()
+    with app.app_context():
+        init_db()
     app.run(debug=True, host='0.0.0.0', port=5000)
