@@ -1,0 +1,69 @@
+﻿{% extends "base.html" %}
+{% block title %}仪表盘 - 计量器具管理系统{% endblock %}
+{% block content %}
+<div class="row mb-3">
+    <div class="col-md-3 col-sm-6 mb-2"><div class="card stat-card p-3"><small class="text-muted">器具总数</small><h3 class="mb-0">{{ devices|length }}</h3></div></div>
+    <div class="col-md-3 col-sm-6 mb-2"><div class="card stat-card warning p-3"><small class="text-muted">在用</small><h3 class="mb-0">{{ devices|selectattr('status','equalto','在用')|list|length }}</h3></div></div>
+    <div class="col-md-3 col-sm-6 mb-2"><div class="card stat-card danger p-3"><small class="text-muted">即将到期</small><h3 class="mb-0">{{ alerts|length }}</h3></div></div>
+    <div class="col-md-3 col-sm-6 mb-2"><div class="card stat-card p-3"><small class="text-muted">校准中</small><h3 class="mb-0">{{ devices|selectattr('status','equalto','校准中')|list|length }}</h3></div></div>
+</div>
+
+{% if alerts %}
+<div class="card mb-3" style="border-left: 4px solid #f9ab00;">
+    <div class="card-body py-2">
+        <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>
+        <strong>校准提醒：</strong>
+        {% for a in alerts %}
+        <span class="badge alert-badge bg-warning text-dark me-1">{{ a.name }} ({{ a.days_left }}天后到期)</span>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-body d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-list-ul me-2"></i>器具列表</h5>
+        <a href="/device/add" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>新增器具</a>
+    </div>
+</div>
+
+<div class="card mt-3">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr><th>器具名称</th><th>型号</th><th>保管人</th><th>校准周期</th><th>上次校准</th><th>下次校准</th><th>状态</th><th>操作</th></tr>
+                </thead>
+                <tbody>
+                    {% for d in devices %}
+                    <tr>
+                        <td><a href="/device/{{ d.id }}" class="text-decoration-none fw-bold">{{ d.name }}</a></td>
+                        <td>{{ d.model or '-' }}</td>
+                        <td>{{ d.keeper or '-' }}</td>
+                        <td>{{ d.calibration_cycle }}天</td>
+                        <td>{{ d.last_calibration_date or '-' }}</td>
+                        <td>
+                            {{ d.next_calibration_date or '-' }}
+                            {% set nd = d.next_calibration_date %}
+                            {% if nd %}
+                            {% set delta = (nd|string)[:10] %}
+                            {% set dl = (delta|replace('-','')|length) %}
+                            {% endif %}
+                        </td>
+                        <td><span class="badge-status status-{{ d.status }}">{{ d.status }}</span></td>
+                        <td>
+                            <a href="/device/{{ d.id }}/edit" class="btn btn-sm btn-outline-secondary me-1" title="编辑"><i class="bi bi-pencil"></i></a>
+                            <form action="/device/{{ d.id }}/delete" method="post" style="display:inline;" onsubmit="return confirm('确定删除？')">
+                                <button class="btn btn-sm btn-outline-danger" title="删除"><i class="bi bi-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="8" class="text-center text-muted py-4">暂无器具数据，点击"新增器具"开始</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

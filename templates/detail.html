@@ -1,0 +1,41 @@
+﻿{% extends "base.html" %}
+{% block title %}{{ device.name }} - 计量器具管理系统{% endblock %}
+{% block content %}
+<div class="row">
+    <div class="col-lg-6 col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>器具详情</h5>
+                <span class="badge-status status-{{ device.status }}">{{ device.status }}</span>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless mb-0">
+                    <tr><td class="text-muted" style="width:120px;">器具名称</td><td class="fw-bold">{{ device.name }}</td></tr>
+                    <tr><td class="text-muted">型号</td><td>{{ device.model or '-' }}</td></tr>
+                    <tr><td class="text-muted">生产厂家</td><td>{{ device.manufacturer or '-' }}</td></tr>
+                    <tr><td class="text-muted">购置日期</td><td>{{ device.purchase_date or '-' }}</td></tr>
+                    <tr><td class="text-muted">保管人</td><td>{{ device.keeper or '-' }}</td></tr>
+                    <tr><td class="text-muted">校准周期</td><td>{{ device.calibration_cycle }} 天</td></tr>
+                    <tr><td class="text-muted">上次校准</td><td>{{ device.last_calibration_date or '-' }}</td></tr>
+                    <tr><td class="text-muted">下次校准</td>
+                        <td>
+                            {{ device.next_calibration_date or '-' }}
+                            {% if device.next_calibration_date %}
+                            {% set nd_str = device.next_calibration_date[:10] %}
+                            {% set days_left = ((nd_str + ' 00:00:00')|string)[0] %}
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+                <div class="mt-3 d-flex gap-2">
+                    <a href="/device/{{ device.id }}/edit" class="btn btn-primary btn-sm"><i class="bi bi-pencil me-1"></i>编辑</a>
+                    <form action="/device/{{ device.id }}/delete" method="post" onsubmit="return confirm('确定删除该器具？')">
+                        <button class="btn btn-outline-danger btn-sm"><i class="bi bi-trash me-1"></i>删除</button>
+                    </form>
+                    <a href="/" class="btn btn-outline-secondary btn-sm">返回列表</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

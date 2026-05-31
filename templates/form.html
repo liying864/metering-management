@@ -1,0 +1,57 @@
+﻿{% extends "base.html" %}
+{% block title %}{{ action }}器具 - 计量器具管理系统{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6 col-md-8">
+        <div class="card">
+            <div class="card-header bg-white"><h5 class="mb-0"><i class="bi {% if action=='添加' %}bi-plus-circle{% else %}bi-pencil-square{% endif %} me-2"></i>{{ action }}计量器具</h5></div>
+            <div class="card-body">
+                <form method="post">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">器具名称 <span class="text-danger">*</span></label>
+                            <input type="text" name="name" class="form-control" value="{{ device.name if device else '' }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">型号</label>
+                            <input type="text" name="model" class="form-control" value="{{ device.model if device else '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">生产厂家</label>
+                            <input type="text" name="manufacturer" class="form-control" value="{{ device.manufacturer if device else '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">购置日期</label>
+                            <input type="date" name="purchase_date" class="form-control" value="{{ device.purchase_date if device else '' }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">保管人</label>
+                            <input type="text" name="keeper" class="form-control" value="{{ device.keeper if device else '' }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">校准周期(天)</label>
+                            <input type="number" name="calibration_cycle" class="form-control" value="{{ device.calibration_cycle if device else 365 }}" min="1">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">上次校准日期</label>
+                            <input type="date" name="last_calibration_date" class="form-control" value="{{ device.last_calibration_date if device else '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">状态</label>
+                            <select name="status" class="form-select">
+                                <option value="在用" {% if device and device.status=='在用' %}selected{% endif %}>在用</option>
+                                <option value="校准中" {% if device and device.status=='校准中' %}selected{% endif %}>校准中</option>
+                                <option value="报废" {% if device and device.status=='报废' %}selected{% endif %}>报废</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mt-4 d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">保 存</button>
+                        <a href="/" class="btn btn-outline-secondary">取消</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

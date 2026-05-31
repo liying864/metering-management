@@ -1,0 +1,23 @@
+﻿{% extends "base.html" %}
+{% block title %}登录 - 计量器具管理系统{% endblock %}
+{% block content %}
+<div class="row justify-content-center" style="margin-top: 10vh;">
+    <div class="col-md-4 col-sm-8">
+        <div class="card p-4">
+            <h3 class="text-center mb-4" style="color:#1a73e8;"><i class="bi bi-gear-fill me-2"></i>计量器具管理</h3>
+            <form method="post">
+                <div class="mb-3">
+                    <label class="form-label">用户名</label>
+                    <input type="text" name="username" class="form-control" placeholder="请输入用户名" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">密码</label>
+                    <input type="password" name="password" class="form-control" placeholder="请输入密码" required>
+                </div>
+                <button type="submit" class="btn btn-primary w-100">登 录</button>
+            </form>
+            <p class="text-muted text-center mt-3 mb-0" style="font-size:0.8rem;">默认管理员：admin / 123456</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
