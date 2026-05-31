@@ -1,0 +1,46 @@
+﻿# ===== IDE & Editor =====
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ===== Dependencies =====
+node_modules/
+vendor/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# ===== Environment =====
+.env
+.env.local
+.env.*.local
+*.log
+
+# ===== OS =====
+Thumbs.db
+Desktop.ini
+
+# ===== Build =====
+target/
+*.class
+*.jar
+*.war
+*.o
+*.so
+*.dylib
+
+# ===== Package =====
+*.zip
+*.tar.gz
+*.rar
+
+# ===== Test =====
+coverage/
+.coverage
+*.cover
